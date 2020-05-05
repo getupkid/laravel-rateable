@@ -1,4 +1,6 @@
-<?php namespace willvincent\Rateable;
+<?php
+
+namespace willvincent\Rateable;
 
 trait Rateable
 {
@@ -11,7 +13,7 @@ trait Rateable
     {
         return $this->morphMany(config('ratings.model'), 'rateable');
     }
-    
+
     /**
      * Add a rating to the model
      *
@@ -23,6 +25,11 @@ trait Rateable
             $model = config('ratings.model');
             $rating = new $model;
             $rating->rating = $value;
+
+            if (config('ratings.max_rating')) {
+                $rating->rating = ($value > config('ratings.max_rating')) ? config('ratings.max_rating') : $value;
+            }
+
             $rating->user_id = auth()->user()->id;
             $this->ratings()->save($rating);
         }
@@ -42,34 +49,48 @@ trait Rateable
                 'rateable_id' => $this->id,
                 'user_id' => auth()->user()->id
             ]);
+
             $rating->rating = $value;
+
+            if (config('ratings.max_rating')) {
+                $rating->rating = ($value > config('ratings.max_rating')) ? config('ratings.max_rating') : $value;
+            }
+
             $this->ratings()->save($rating);
         }
     }
 
     public function averageRating()
     {
-        return $this->ratings()->avg('rating');
+        return $this->ratings->avg('rating');
     }
 
     public function sumRating()
     {
-        return $this->ratings()->sum('rating');
+        return $this->ratings->sum('rating');
     }
 
     public function userAverageRating()
     {
-        return $this->ratings()->where('user_id', \Auth::id())->avg('rating');
+        if (auth()->check()) {
+            return $this->ratings->where('user_id', \Auth::id())->avg('rating');
+        }
     }
 
     public function userSumRating()
     {
-        return $this->ratings()->where('user_id', \Auth::id())->sum('rating');
+        if (auth()->check()) {
+            return $this->ratings->where('user_id', \Auth::id())->sum('rating');
+        }
     }
 
     public function ratingPercent($max = 5)
     {
-        $quantity = $this->ratings()->count();
+        if (config('ratings.max_rating')) {
+            $max = config('ratings.max_rating');
+        }
+
+        $quantity = $this->ratings->count();
         $total = $this->sumRating();
 
         return ($quantity * $max) > 0 ? $total / (($quantity * $max) / 100) : 0;
