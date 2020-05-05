@@ -11,6 +11,37 @@ trait Rateable
     {
         return $this->morphMany('willvincent\Rateable\Rating', 'rateable');
     }
+    
+    /**
+     * Add a rating to the model
+     *
+     * @return Rating
+     */
+    public function rate($value)
+    {
+        $model = config('ratings.model');
+        $rating = new $model;
+        $rating->rating = $value;
+        $rating->user_id = auth()->user()->id;
+        $this->ratings()->save($rating);
+    }
+
+    /**
+     * Only rate the model once / updates the rating if it is different
+     *
+     * @return Rating
+     */
+    public function rateSingle($value)
+    {
+        $model = config('ratings.model');
+        $rating = $model::firstOrNew([
+            'rateable_type' => $this->getMorphClass(),
+            'rateable_id' => $this->id,
+            'user_id' => auth()->user()->id
+        ]);
+        $rating->rating = $value;
+        $this->ratings()->save($rating);
+    }
 
     public function averageRating()
     {
